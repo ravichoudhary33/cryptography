@@ -1,7 +1,7 @@
-// note: bitset is indexing is from right side
+// before running the code make sure des_map.txt is in same directory
 
 // compile: g++ -std=c++11 des_cipher.cpp
-// run:     ./a.out < des_map.txt
+// run:     ./a.out
 
 #include <iostream>
 #include <bitset>
@@ -399,6 +399,8 @@ void des_cipher(bitset<64> pt, bitset<64> key){
 
 int main(){
 
+    // get mapping from des_map txt file
+    freopen("des_map.txt", "r", stdin);
     get_mapping_from_txt_file();
 
     bitset<64>msg("0000000100100011010001010110011110001001101010111100110111101111");
