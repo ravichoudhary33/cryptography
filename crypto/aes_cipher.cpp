@@ -1,3 +1,11 @@
+// Instruction: make sure aes_sbox.txt file is in same directory of this file
+// In this code key string and plain text string is hard coded
+// if you want to use your key and string make sure to change the corresponding string value
+// also make sure that both the string should be of 16 ASCII characters long
+ 
+// to compile execute : g++ aes_cipher.cpp
+// ro run             : ./a.out
+
 #include <iostream>
 #include <vector>
 #include <bitset>
