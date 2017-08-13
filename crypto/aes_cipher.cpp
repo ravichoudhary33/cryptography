@@ -9,6 +9,7 @@ typedef vector< bitset<8> > vb;
 // vector to store the sbox matrix
 vector< vb > sbox(16, vb(16, 0));
 vector< vb > tm(4, vb(4, 0));
+vector< bitset<32> > rcon(10, 0);
 
 int get_value_of_hex(char c){
     switch(c){
@@ -62,6 +63,7 @@ void print_s(const vector< vb > &s){
         }cout << endl;
     }
 }
+
 // given string of length 2 contain sbox value convert to 8bit
 bitset<8> get_bitset_value(string ts){
     int c1 = get_value_of_hex(ts[0]), c2 = get_value_of_hex(ts[1]);
@@ -99,6 +101,18 @@ void get_sbox_from_file(){
             cin >> x;
             tm[i][j] = bitset<8>(x);
         }
+    }
+    // get rcon value from the text file
+    for(int i=0; i<10; i++){
+        cin >> ts;
+        string st = "";
+        for(int j=0; j<8; j++){
+            int y = get_value_of_hex(ts[j]);
+            bitset<4> bst(y);
+            st += bst.to_string();
+        }
+        bitset<32> wb(st);
+        rcon[i] = wb;
     }
 }
 
@@ -183,42 +197,140 @@ vector < vb > matrix_xor(const vector < vb > &a, const vector< vb > &b){
     }
     return c;
 }
+// method for meging four eight bit into vector of four eight bit
+bitset<32> get_word(bitset<8> a, bitset<8> b, bitset<8> c, bitset<8> d){
+    // convert all 8 bit into string then concat all 4 string
+    string s1 = a.to_string();
+    string s2 = b.to_string();
+    string s3 = c.to_string();
+    string s4 = d.to_string();
+    string s = s1 + s2 + s3 + s4;
+    // convert concated string to bitset of 32 bit
+    bitset<32> tw(s);
+
+    return tw;
+}
+// function to do one left circular shift of 8bit on t
+bitset<32> rot_word(bitset<32> t){
+    t = (t << 8) | (t >> 24);
+    return t;
+}
+
+// substitution function on 32bit word
+bitset<32> sub_word(bitset<32> t){
+    vector< bitset<8> > vt;
+    string stt = "";
+    for(int i=31; i>=0; i-=8){
+        bitset<8> tp;
+        for(int j=7; j>=0; j--){
+            tp[j] = t[i+j-7];
+        }
+        vt.push_back(tp);
+    }
+    // now we have vector of 8bit of size 4 = 32bit
+    for(int i=0; i<4; i++){
+        bitset<8> tt = vt[i];
+
+        // now get left half four bit and right half four bit
+        bitset<4> t1, t2;
+        for(int j=7; j>=4; j--){
+            t1[j-4] = tt[j];
+        }
+        // get right half four bit
+        for(int j=3; j>=0; j--){
+            t2[j] = tt[j];
+        }
+        // get row and column
+        int r = (int)t1.to_ulong(); int c = (int)t2.to_ulong();
+        bitset<8> sv = sbox[r][c];
+        // cout << "r: " << r << ", c: " << c << ", sv: " << sv.to_string() << endl;
+        stt += sv.to_string();
+    }
+    bitset<32> wt(stt);
+    return wt;
+}
+
+// key expansion method to generate round keys from key
+vector< bitset<32> > key_expansion(const vector< bitset<8> > &key){
+    // get w0, w1 , w2, w3
+    vector<string> vbs(44, "");
+    vector < bitset<32> > w(44, 0);
+    for(int i=0; i<4; i++){
+        w[i] = get_word(key[4*i], key[4*i+1], key[4*i+2], key[4*i+3]);
+        vbs[i] = w[i].to_string();
+    }
+    // get all w from 0 to 43
+    for(int i = 4; i < 44; i++){
+        // vb is vector of 8bit
+        bitset<32> temp = w[i-1];
+        if(i%4==0){
+            bitset<32> rw = rot_word(temp);
+            bitset<32> sw = sub_word(rw);
+            // cout << "rw: " << rw.to_string() << ", sw: " << sw.to_string() << "rcon: " << rcon[i/4-1].to_string() << endl;
+            temp = sw ^ rcon[i/4-1];
+        }
+        w[i] = w[i-4] ^ temp;
+        vbs[i] = w[i].to_string();
+    }
+
+    // for(int i=0; i<44; i++){
+    //     cout << "w[" << i << "] = " << vbs[i] << endl;
+    // }
+
+    return w;
+}
 
 int main(){
     string key, pt;
-    cout << "Enter 16 ASCII characters Key, 1byte each\n";
-    getline(cin, key);
 
-    while(key.size() != 16){
-        cout << "Please, Enter 16 ASCII characters Key only, 1byte each\n";
-        getline(cin, key);
-    }
+    // change the key and plane text value of string according to your need
+    // but make sure that of the them should be of 16 ASCII characters long
+    key = "Thats my Kung Fu";
+    pt = "Two One Nine Two";
 
-    cout << "Enter 16 ASCII characters Plain Text, 1byte each\n";
-    getline(cin, pt);
+    // cout << "Enter 16 ASCII characters Key, 1byte each\n";
+    // getline(cin, key);
+    //
+    // while(key.size() != 16){
+    //     cout << "Please, Enter 16 ASCII characters Key only, 1byte each\n";
+    //     getline(cin, key);
+    // }
+    //
+    // cout << "Enter 16 ASCII characters Plain Text, 1byte each\n";
+    // getline(cin, pt);
+    //
+    // while(pt.size() != 16){
+    //     cout << "Please, Enter 16 ASCII characters Plain Text only, 1byte each\n";
+    //     getline(cin, pt);
+    // }
 
-    while(pt.size() != 16){
-        cout << "Please, Enter 16 ASCII characters Plain Text only, 1byte each\n";
-        getline(cin, pt);
-    }
+    cout << "\n[Key] = " << key << endl;
+    cout << "[Message] = " << pt << endl;
 
-    // convert each char to bitset and store in vts
+    // convert each char of key to bitset and store in vts is vector of size 16 of bitset<8>
     vector< bitset<8> > vts;
     for(int i=0; i<key.size(); i++){
         bitset<8> bt(key[i]);
         vts.push_back(bt);
     }
 
-    // convert each char to bitset and store in vts
+    // convert each char of plane text to bitset and store in vtsp
     vector< bitset<8> > vtsp;
     for(int i=0; i<pt.size(); i++){
         bitset<8> bt(pt[i]);
         vtsp.push_back(bt);
     }
 
-    // to print the 128 bit message
+    // to print the 128 bit key
+    cout << "\n[128bit encoded key]\n";
     for(int i=0; i<vts.size(); i++){
         cout << vts[i].to_string() << " ";
+    }cout << endl;
+
+    // to print the 128 bit message
+    cout << "\n[128bit encoded message]\n";
+    for(int i=0; i<vtsp.size(); i++){
+        cout << vtsp[i].to_string() << " ";
     }cout << endl;
 
     // now save vts into a 4 by 4 matrix column wise
@@ -240,41 +352,91 @@ int main(){
     }
 
     // display s
-    cout << "s\n";
+    cout << "\n[encoded key matrix of 4 by 4 each element is of 8bit]\n";
     print_s(s);
-    cout << "sp\n";
+    cout << "\n[encoded plain text matrix of 4 by 4 each element is of 8bit]\n";
     print_s(sp);
 
     // get sbox value from file and print
     get_sbox_from_file();
+    cout << "\n[sbox matrix of quick look up]\n";
     print_sbox();
 
     // first do matrix xor in s and sp
     s = matrix_xor(s, sp);
-    cout << "after matrix xor s\n";
+    cout << "\n[after applying matrix xor on encoded key matrix and plain text matrix]\n";
     print_s(s);
     // start point of algorithm
     // step 1: substitute bytes
     vector< vb > sd = substitute_bytes(s);
-    cout << "substitute_bytes\n";
+    cout << "\n[after applying substitute_bytes on new state matrix this is S']\n";
     print_s(sd);
 
     // step 2: shift row transformation on sd
     vector< vb > ssd = shift_row_transformation(sd);
-    cout << "row shift\n";
+    cout << "\n[after applying row shift on S' matrix]\n";
     print_s(ssd);
 
     // print_s(tm);
     // step 3: mix column transformation
     vector< vb > mct = mix_column_tranformation(ssd);
     // print mct
-    cout << "mct\n";
+    cout << "\n[after applying mix column transformation on new state matrix]\n";
     for(int i=0; i<4; i++){
         for(int j=0; j<4; j++){
             cout << mct[i][j].to_string() << " ";
         }cout << endl;
     }
 
+    // get word vector from the key
+    vector< bitset<32> > vw =  key_expansion(vts);
+    //cout << "vw size: " << vw.size() << endl;
+    // first round key
+    string sfrk = "";
+    for(int i=4; i<=7; i++){
+        sfrk += vw[i].to_string();
+    }
+    bitset<128> frk(sfrk);
+    // cout << "frk: " << frk.to_string() << endl;
+    // first convert 128 bit into vector of 8bit of size 16
+    vector< bitset<8> > vfrk;
+    for(int i=127; i>=0; i-=8){
+        bitset<8> tp;
+        for(int j=7; j>=0; j--){
+            tp[j] = frk[i+j-7];
+        }
+        // cout << tp.to_string() << " ";
+        vfrk.push_back(tp);
+    }cout << endl;
+
+    // pritn vfrk
+    cout << "\n[first round key vector of 8bit]" << endl;
+    for(int i=0; i<16; i++){
+        cout << vfrk[i].to_string() << " ";
+    }cout << endl;
+
+    // convert frk into matrix form
+    vector< vb > frkm(4, vb(4, 0));
+    int h = 0;
+    for(int i=0; i<4; i++){
+        for(int j=0; j<4; j++){
+            frkm[j][i] = vfrk[h++];
+        }
+    }
+    cout << "\n[first round key in matrix form]" << endl;
+    print_s(frkm);
+
+    // again take matrix xor
+    mct = matrix_xor(mct, frkm);
+    cout << "\n[xor yield of mix column transformation matrx with first round key matrix]\n";
+    print_s(mct);
+
+    cout << "\n[AES after one round]" << endl;
+    for(int i=0; i<4; i++){
+        for(int j=0; j<4; j++){
+            cout << mct[j][i] << " ";
+        }
+    }cout << "\n\n";
     // bitset<8> u1(3);
     // bitset<8> u2(string("01101110"));
     // bitset<8> ttt = gmul(u1, u2);
